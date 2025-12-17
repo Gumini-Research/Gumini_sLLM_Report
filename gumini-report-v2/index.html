@@ -1,0 +1,1999 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gumini (구미니) - Data-Efficient Korean-English LLM</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #F72585;
+            --primary-glow: rgba(247, 37, 133, 0.4);
+            --secondary: #161b22;
+            --accent: #FF8E53;
+            --accent-glow: rgba(255, 142, 83, 0.4);
+            --bg: #0D1117;
+            --bg-card: rgba(22, 27, 34, 0.8);
+            --bg-card-hover: rgba(48, 54, 61, 0.8);
+            --text: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border: rgba(48, 54, 61, 0.6);
+            --gradient-1: linear-gradient(135deg, #F72585 0%, #FF8E53 100%);
+            --gradient-2: linear-gradient(135deg, #FF8E53 0%, #FFD700 100%);
+            --gradient-text: linear-gradient(90deg, #F72585, #FF8E53, #FFD700);
+            --glass: blur(12px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Pretendard', 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            selection-background-color: var(--primary);
+            selection-color: white;
+        }
+
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: var(--gradient-1);
+            z-index: 1001;
+            transition: width 0.1s;
+            box-shadow: 0 0 10px #F72585;
+        }
+
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.3;
+            animation: float 25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .orb-1 {
+            width: 900px;
+            height: 900px;
+            background: radial-gradient(circle, rgba(247, 37, 133, 0.25) 0%, transparent 70%);
+            top: -30%;
+            left: 50%;
+            transform: translateX(-50%);
+            animation-delay: 0s;
+            opacity: 1;
+            filter: blur(80px);
+        }
+
+        .orb-2 {
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(180deg, #FF8E53 0%, transparent 100%);
+            bottom: -10%;
+            right: -5%;
+            animation-delay: -5s;
+            opacity: 0.4;
+        }
+
+        .orb-3 {
+            width: 500px;
+            height: 500px;
+            background: #FFD700;
+            top: 30%;
+            left: -10%;
+            animation-delay: -10s;
+            opacity: 0.15;
+            filter: blur(150px);
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(50px, 80px) scale(1.1);
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 24px 0;
+            transition: all 0.4s ease;
+        }
+
+        nav.scrolled {
+            background: rgba(3, 3, 5, 0.85);
+            backdrop-filter: var(--glass);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        nav::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--gradient-text);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        nav.scrolled::after {
+            opacity: 1;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            position: relative;
+            padding: 4px 0;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: white;
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .lang-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 30px;
+            padding: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .lang-btn {
+            padding: 6px 18px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 24px;
+            transition: all 0.3s;
+        }
+
+        .lang-btn.active {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 160px 0 100px;
+            position: relative;
+        }
+
+        .hero-content {
+            max-width: 1000px;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 142, 83, 0.1);
+            border: 1px solid rgba(255, 142, 83, 0.4);
+            padding: 8px 20px;
+            border-radius: 100px;
+            font-size: 0.9rem;
+            color: #FF8E53;
+            margin-bottom: 40px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(255, 142, 83, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .hero-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 142, 83, 0.4);
+        }
+
+        .hero h1 {
+            font-size: 6rem;
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 32px;
+            letter-spacing: -1.5px;
+            color: white;
+        }
+
+        .hero h1 span {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: gradientMove 5s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .hero h1 .sub-name {
+            display: none;
+            -webkit-text-fill-color: var(--text-secondary);
+            font-weight: 500;
+            vertical-align: middle;
+            margin-left: 16px;
+            letter-spacing: 0;
+            opacity: 0.8;
+        }
+
+        .hero-subtitle {
+            font-size: 1.6rem;
+            color: var(--text-secondary);
+            margin-bottom: 56px;
+            max-width: 850px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            margin-bottom: 70px;
+            flex-wrap: wrap;
+        }
+
+        .hero-stat {
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-stat::after {
+            content: '';
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 50px;
+            background: linear-gradient(to bottom, transparent, var(--border), transparent);
+        }
+
+        .hero-stat:last-child::after {
+            display: none;
+        }
+
+        .hero-stat-value {
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(to bottom, #fff, #a0a0b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .hero-stat-label {
+            font-size: 1rem;
+            color: var(--accent);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 40px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: pointer;
+            border: none;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 10px 40px rgba(247, 37, 133, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 50px rgba(247, 37, 133, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: white;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .highlight-box {
+            background: rgba(20, 20, 35, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 80px;
+            margin: 100px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+        }
+
+        .highlight-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+
+        .shimmer {
+            background: linear-gradient(to right, #F72585 0%, #fff 50%, #FF8E53 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 5s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 200% 50%;
+            }
+        }
+
+        .highlight-number {
+            font-size: 7rem;
+            font-weight: 800;
+            line-height: 1;
+            margin: 24px 0;
+            text-shadow: 0 0 40px rgba(247, 37, 133, 0.4);
+        }
+
+        section {
+            padding: 140px 0;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-table {
+                font-size: 0.85rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 12px 10px;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 16px;
+            box-shadow: 0 0 60px rgba(247, 37, 133, 0.3);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .figure-img {
+            cursor: zoom-in;
+            transition: transform 0.3s;
+        }
+
+        .figure-img:hover {
+            transform: scale(1.02);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 100px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            color: var(--accent);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .section-tag::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 16px;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .section-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            background: linear-gradient(to bottom, #fff, #a0a0b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-desc {
+            color: var(--text-secondary);
+            max-width: 750px;
+            margin: 0 auto;
+            font-size: 1.25rem;
+            line-height: 1.7;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+            margin: 80px 0;
+        }
+
+        .comparison-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 40px 32px;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            background: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .comparison-card.ours {
+            background: linear-gradient(145deg, rgba(247, 37, 133, 0.1), rgba(22, 27, 34, 0.9));
+            border: 1px solid rgba(247, 37, 133, 0.4);
+            box-shadow: 0 0 30px rgba(247, 37, 133, 0.1);
+        }
+
+        .comparison-card.ours:hover {
+            box-shadow: 0 0 50px rgba(247, 37, 133, 0.2);
+            border-color: #F72585;
+        }
+
+        .comparison-card h4 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .badge-ours {
+            background: var(--gradient-1);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .comparison-tokens {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 24px 0;
+            color: white;
+        }
+
+        .comparison-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            margin: 24px 0;
+            overflow: hidden;
+        }
+
+        .comparison-fill {
+            height: 100%;
+            background: var(--gradient-2);
+            border-radius: 4px;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .comparison-card.ours .comparison-fill {
+            background: var(--gradient-1);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .comparison-meta {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 48px;
+            overflow-x: auto;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th {
+            text-align: left;
+            padding: 24px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 28px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-weight: 500;
+            font-size: 1.05rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr.highlight-row {
+            background: rgba(255, 142, 83, 0.1);
+        }
+
+        tr.highlight-row td {
+            color: white;
+            font-weight: 700;
+        }
+
+        tr.highlight-row td:first-child {
+            border-left: 4px solid var(--primary);
+        }
+
+        .rank-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: black;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .rank-2 {
+            background: linear-gradient(135deg, #E0E0E0, #BDBDBD);
+            color: black;
+            box-shadow: 0 0 20px rgba(192, 192, 192, 0.3);
+        }
+
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #8B4513);
+            color: white;
+            box-shadow: 0 0 20px rgba(205, 127, 50, 0.3);
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 48px;
+            margin: 80px 0;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 40px;
+            transition: transform 0.3s;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+            margin: 80px 0;
+        }
+
+        .arch-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 36px 24px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .arch-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 10px 30px var(--accent-glow);
+        }
+
+        .arch-value {
+            display: block;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: 12px;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .arch-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .code-wrapper {
+            background: #0d0d14;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+            margin: 60px 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 28px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .window-dots {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #FF5F56;
+            box-shadow: 0 0 10px rgba(255, 95, 86, 0.4);
+        }
+
+        .dot-yellow {
+            background: #FFBD2E;
+            box-shadow: 0 0 10px rgba(255, 189, 46, 0.4);
+        }
+
+        .dot-green {
+            background: #27C93F;
+            box-shadow: 0 0 10px rgba(39, 201, 63, 0.4);
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: white;
+        }
+
+        pre {
+            padding: 32px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        code {
+            color: #e0e0e0;
+        }
+
+        .kwd {
+            color: #ff79c6;
+        }
+
+        .str {
+            color: #f1fa8c;
+        }
+
+        .com {
+            color: #6272a4;
+        }
+
+        .func {
+            color: #50fa7b;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 100px 0 50px;
+            text-align: center;
+            background: rgba(3, 3, 5, 0.9);
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin: 40px 0;
+        }
+
+        .social-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: 1px solid var(--border);
+            font-size: 1.2rem;
+        }
+
+        .social-btn:hover {
+            background: var(--gradient-1);
+            transform: translateY(-6px);
+            border-color: transparent;
+            box-shadow: 0 10px 30px var(--primary-glow);
+        }
+
+        .hf-icon {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+
+        .fade-up {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 4rem;
+            }
+
+            .hero-stats {
+                gap: 40px;
+            }
+
+            .hero-stat::after {
+                display: none;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <img id="modalImg" src="" alt="Zoomed Figure">
+    </div>
+
+    <nav id="navbar">
+        <div class="container">
+            <div class="logo">Gumini <span
+                    style="font-size: 0.6em; font-weight: 500; color: var(--text-secondary);">(구미니)</span></div>
+            <ul class="nav-links">
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#efficiency">Efficiency</a></li>
+                <li><a href="#results">Results</a></li>
+                <li><a href="#architecture">Architecture</a></li>
+                <li>
+                    <div class="lang-toggle">
+                        <button class="lang-btn active" data-lang="en">EN</button>
+                        <button class="lang-btn" data-lang="kr">KR</button>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero" id="overview">
+        <div class="hero-content">
+            <div class="hero-badge fade-up">
+                <i class="fas fa-bolt"></i>
+                <span>Research Preview</span>
+            </div>
+            <h1 class="fade-up">
+                <span data-en="Gumini" data-kr="Gumini">Gumini</span><span class="sub-name">(구미니)</span>
+            </h1>
+            <p class="hero-subtitle fade-up"
+                data-en="Gumini outperforms Qwen-2.5-1.5B with 5,732× less data and surpasses the 2x larger Llama-3.2-3B with 2,866× less data.<br>The new standard for data-efficient Korean LLMs."
+                data-kr="Gumini는 5,732배 적은 데이터로 Qwen-2.5-1.5B를 뛰어넘고<br>2,866배 적은 데이터로 2배 더 큰 Llama-3.2-3B를 능가합니다.<br>데이터 효율적 한국어 LLM의 새로운 기준.">
+                Gumini outperforms Qwen-2.5-1.5B with 5,732× less data and surpasses the 2x larger Llama-3.2-3B with
+                2,866× less data.<br>
+                The new standard for data-efficient Korean LLMs.
+            </p>
+
+            <div class="hero-stats fade-up">
+                <div class="hero-stat">
+                    <div class="hero-stat-value">3.14B</div>
+                    <div class="hero-stat-label">Training Tokens</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">8.49</div>
+                    <div class="hero-stat-label">Perplexity</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">#3</div>
+                    <div class="hero-stat-label">Overall Rank</div>
+                </div>
+            </div>
+
+            <div class="hero-buttons fade-up">
+                <a href="https://huggingface.co/GuminiResearch/Gumini-1.5B-Base" class="btn btn-primary"
+                    target="_blank">
+                    <img src="assets/huggingface.png" class="hf-icon" alt="Hugging Face">
+                    Gumini-1.5B
+                </a>
+                <a href="https://huggingface.co/GuminiResearch/Gumini-1B-Base" class="btn btn-secondary"
+                    style="border: 1px solid rgba(255,255,255,0.2);" target="_blank">
+                    <img src="assets/huggingface.png" class="hf-icon" alt="Hugging Face"
+                        style="width: 18px; height: 18px;">
+                    Gumini-1B
+                </a>
+                <a href="https://huggingface.co/GuminiResearch/Gumini-1.5B-Base-i1-GGUF" class="btn btn-secondary"
+                    style="border: 1px solid rgba(255,255,255,0.2);" target="_blank">
+                    <i class="fas fa-cube"></i> GGUF
+                </a>
+                <a href="https://www.linkedin.com/in/devgumin" class="btn btn-secondary" target="_blank">
+                    <i class="fab fa-linkedin-in"></i> LinkedIn
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="section">
+        <div class="container">
+            <h2 class="section-title" style="text-align: center;" data-en="Evaluation Methodology">
+                Evaluation <span class="gradient-text">Methodology</span></h2>
+            <p class="section-desc" style="text-align: center;"
+                data-en="I evaluated model performance to ensure robustness in Korean contexts."
+                data-kr="한국어 문맥에서의 견고함을 보장하기 위해 모델 성능을 평가했습니다.">
+                I evaluated model performance to ensure robustness in Korean contexts.
+            </p>
+
+            <div class="comparison-grid"
+                style="grid-template-columns: repeat(2, 1fr); margin-bottom: 60px; justify-content: center; max-width: 800px; margin-left: auto; margin-right: auto;">
+                <div class="comparison-card">
+                    <h4><i class="fas fa-database"></i> KoBEST BoolQ</h4>
+                    <div class="stat-value" style="font-size: 1.2rem; margin: 10px 0;" data-en="Korean Standard"
+                        data-kr="Korean Standard">Korean Standard</div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;"
+                        data-en="Standard Korean Boolean QA benchmark test split."
+                        data-kr="Standard Korean Boolean QA benchmark test split.">
+                        Standard Korean Boolean QA benchmark test split.
+                    </p>
+                </div>
+                <div class="comparison-card">
+                    <h4><i class="fab fa-wikipedia-w"></i> Wikipedia KO</h4>
+                    <div class="stat-value" style="font-size: 1.2rem; margin: 10px 0;" data-en="Recent Held-Out"
+                        data-kr="Recent Ko-wiki">Recent Ko-wiki</div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;"
+                        data-en="Latest Korean Wikipedia dump for language modeling."
+                        data-kr="Latest Korean Wikipedia dump for language modeling.">
+                        Latest Korean Wikipedia dump for language modeling.
+                    </p>
+                </div>
+            </div>
+
+            <h2 class="section-title" style="text-align: center;" data-en="Data Efficiency Revolution">Data Efficiency
+                <span class="gradient-text">Revolution</span>
+            </h2>
+            <p class="section-desc" style="text-align: center;"
+                data-en="Standard LLMs waste compute on redundant &ldquo;lazy layers&rdquo; in deeper networks. <br> Inheritune solves this by inheriting potent early layers and progressively expanding achieving comparable performance with far fewer parameters and tokens."
+                data-kr="표준 LLM은 깊은 네트워크의 비효율적인 &ldquo;Lazy Layer&rdquo;에 컴퓨팅을 낭비합니다.<br>Inheritune는 초기 레이어를 상속받고 점진적으로 확장하여 훨씬 적은 파라미터와 토큰으로 동등한 성능을 달성합니다.">
+                Standard LLMs waste compute on redundant "lazy layers" in deeper networks. Inheritune solves this by
+                inheriting potent early layers and progressively expanding achieving comparable performance with far
+                fewer parameters and tokens.
+            </p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="highlight-box fade-up">
+            <h3 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 15px;"
+                data-en="Key Achievement" data-kr="Key Achievement
+">Key Achievement</h3>
+            <div class="highlight-number shimmer">5,732×</div>
+            <p style="font-size: 1.5rem; color: white; font-weight: 600;"
+                data-en="More Data Efficient than Qwen-2.5-1.5B" data-kr="Qwen-2.5-1.5B 대비 뛰어난 데이터 효율성">
+                More Data Efficient than Qwen-2.5-1.5B
+            </p>
+            <p style="color: var(--text-secondary); margin-top: 12px; font-size: 1.1rem;"
+                data-en="Gumini-1.5B (PPL 8.49) surpasses Qwen-2.5-1.5B (PPL 8.84) at the same scale with 5,732× less data."
+                data-kr="Gumini-1.5B (PPL 8.49)는 동일 규모에서 5,732배 적은 데이터로 Qwen-2.5-1.5B (PPL 8.84)를 능가합니다.">
+                Gumini-1.5B (PPL 8.49) surpasses Qwen-2.5-1.5B (PPL 8.84) at the same scale with 5,732× less data.
+            </p>
+        </div>
+    </div>
+
+    <section id="efficiency">
+        <div class="container">
+            <div class="section-header fade-up">
+                <div class="section-tag">DATA EFFICIENCY</div>
+                <h2 class="section-title" data-en="Doing More With Less">Doing More With
+                    Less</h2>
+                <p class="section-desc"
+                    data-en="Gumini demonstrates that smart architectural choices and curriculum learning can dramatically reduce data requirements."
+                    data-kr="Gumini는 똑똑한 아키텍처 설계와 커리큘럼 학습이 데이터 요구량을 획기적으로 줄일 수 있음을 증명합니다.">
+                    Gumini demonstrates that smart architectural choices and curriculum learning can dramatically reduce
+                    data requirements.
+                </p>
+            </div>
+
+            <div class="comparison-grid">
+                <div class="comparison-card fade-up">
+                    <h4>Qwen-2.5-7B <span style="font-size: 0.8rem; color: var(--text-secondary);">Alibaba</span></h4>
+                    <div class="comparison-tokens">18T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 100%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span>Data Usage</span>
+                        <span style="color: var(--primary);">5,732×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Qwen-2.5-1.5B <span style="font-size: 0.8rem; color: var(--text-secondary);">Alibaba</span></h4>
+                    <div class="comparison-tokens">18T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 100%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span>Data Usage</span>
+                        <span style="color: var(--primary);">5,732×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Qwen-2.5-0.5B <span style="font-size: 0.8rem; color: var(--text-secondary);">Alibaba</span></h4>
+                    <div class="comparison-tokens">18T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 100%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span>Data Usage</span>
+                        <span style="color: var(--primary);">5,732×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>EXAONE-3.5-2.4B <span style="font-size: 0.8rem; color: var(--text-secondary);">LG AI</span></h4>
+                    <div class="comparison-tokens">~6.5T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 36%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span>Data Usage</span>
+                        <span style="color: var(--primary);">~2,070×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Llama-3.2-3B <span style="font-size: 0.8rem; color: var(--text-secondary);">Meta</span></h4>
+                    <div class="comparison-tokens">9T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 50%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span data-en="Data Usage" data-kr="데이터 사용량">Data Usage</span>
+                        <span style="color: var(--primary);">2,866×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Llama-3.2-1B <span style="font-size: 0.8rem; color: var(--text-secondary);">Meta</span></h4>
+                    <div class="comparison-tokens">9T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 50%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span>Data Usage</span>
+                        <span style="color: var(--primary);">2,866×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Gemma-2B <span style="font-size: 0.8rem; color: var(--text-secondary);">Google</span></h4>
+                    <div class="comparison-tokens">2T</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 11%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span data-en="Data Usage" data-kr="데이터 사용량">Data Usage</span>
+                        <span style="color: var(--primary);">637×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>BLOOM-1.1B <span style="font-size: 0.8rem; color: var(--text-secondary);">BigScience</span></h4>
+                    <div class="comparison-tokens">350B</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 2%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span data-en="Data Usage" data-kr="데이터 사용량">Data Usage</span>
+                        <span style="color: var(--primary);">111×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card fade-up">
+                    <h4>Polyglot-Ko-1.3B <span
+                            style="font-size: 0.8rem; color: var(--text-secondary);">EleutherAI</span></h4>
+                    <div class="comparison-tokens">213B</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 1.2%"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span data-en="Data Usage" data-kr="데이터 사용량">Data Usage</span>
+                        <span style="color: var(--primary);">68×</span>
+                    </p>
+                </div>
+
+                <div class="comparison-card ours fade-up">
+                    <h4>Gumini-1.5B <span class="badge-ours">Ours</span></h4>
+                    <div class="comparison-tokens"
+                        style="background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        3.14B</div>
+                    <div class="comparison-bar">
+                        <div class="comparison-fill" style="width: 0.02%; background: var(--gradient-1);"></div>
+                    </div>
+                    <p class="comparison-meta">
+                        <span data-en="Data Usage" data-kr="데이터 사용량">Data Usage</span>
+                        <span style="color: var(--accent);">Baseline (1×)</span>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+        </div>
+    </section>
+
+    <section id="results">
+        <div class="container">
+            <div class="section-header fade-up">
+                <div class="section-tag">BENCHMARKS</div>
+                <h2 class="section-title" data-en="Performance Comparison">Performance Comparison
+                </h2>
+                <p class="section-desc"
+                    data-en="Evaluated on Korean benchmarks. <br> Gumini outperforms larger models trained on significantly more data."
+                    data-kr="한국어 벤치마크에서 평가를 진행했습니다. <br> Gumini는 훨씬 많은 데이터로 학습된 더 큰 모델들보다 뛰어난 성능을 보입니다.">
+                    Evaluated on Korean benchmarks. <br>Gumini outperforms larger models trained on significantly more
+                    data.
+                </p>
+            </div>
+
+            <div class="table-container fade-up">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>RANK</th>
+                            <th>MODEL</th>
+                            <th>PARAMS</th>
+                            <th>OVERALL PPL (LOWER IS BETTER)</th>
+                            <th>OVERALL TOP-1 ACC</th>
+                            <th>TOP-5 ACC</th>
+                            <th>OVERALL ↑</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="rank-1">
+                            <td>#1</td>
+                            <td>Qwen-2.5-7B</td>
+                            <td>7.62B</td>
+                            <td>6.39</td>
+                            <td>58.8%</td>
+                            <td>79.7%</td>
+                            <td>0.8003</td>
+                        </tr>
+                        <tr class="rank-2">
+                            <td>#2</td>
+                            <td>Gemma-2B</td>
+                            <td>2B</td>
+                            <td>8.15</td>
+                            <td>54.9%</td>
+                            <td>76.5%</td>
+                            <td>0.7759</td>
+                        </tr>
+                        <tr class="highlight-row rank-3">
+                            <td style="color:white;">#3</td>
+                            <td style="color:white;"><i class="fas fa-paw"
+                                    style="margin-right:8px; color:#FF8E53;"></i>Gumini-1.5B</td>
+                            <td style="color:white;">1.54B</td>
+                            <td style="color:white; font-weight:800;">8.49</td>
+                            <td style="color:white;">53.6%</td>
+                            <td style="color:white;">74.8%</td>
+                            <td style="color:white; font-weight:800;">0.7662</td>
+                        </tr>
+                        <tr>
+                            <td>#4</td>
+                            <td>Qwen-2.5-1.5B</td>
+                            <td>1.5B</td>
+                            <td>8.84</td>
+                            <td>53.3%</td>
+                            <td>74.6%</td>
+                            <td>0.7639</td>
+                        </tr>
+                        <tr>
+                            <td>#5</td>
+                            <td>Llama-3.2-3B</td>
+                            <td>3.21B</td>
+                            <td>9.47</td>
+                            <td>53.0%</td>
+                            <td>74.6%</td>
+                            <td>0.7671</td>
+                        </tr>
+                        <tr>
+                            <td>#6</td>
+                            <td>EXAONE-3.5-2.4B</td>
+                            <td>2.4B</td>
+                            <td>9.80</td>
+                            <td>54.0%</td>
+                            <td>76.1%</td>
+                            <td>0.7766</td>
+                        </tr>
+                        <tr class="highlight-row">
+                            <td style="color:white;">#7</td>
+                            <td style="color:white;"><i class="fas fa-paw"
+                                    style="margin-right:8px; color:#FF8E53;"></i>Gumini-1B</td>
+                            <td style="color:white;">1.08B</td>
+                            <td style="color:white;">11.19</td>
+                            <td style="color:white;">49.5%</td>
+                            <td style="color:white;">70.7%</td>
+                            <td style="color:white; font-weight:800;">0.6971</td>
+                        </tr>
+                        <tr>
+                            <td>#8</td>
+                            <td>Llama-3.2-1B</td>
+                            <td>1.24B</td>
+                            <td>12.14</td>
+                            <td>49.4%</td>
+                            <td>70.8%</td>
+                            <td>0.6720</td>
+                        </tr>
+                        <tr>
+                            <td>#9</td>
+                            <td>Qwen-2.5-0.5B</td>
+                            <td>0.5B</td>
+                            <td>13.37</td>
+                            <td>47.2%</td>
+                            <td>68.5%</td>
+                            <td>0.6240</td>
+                        </tr>
+                        <tr>
+                            <td>#10</td>
+                            <td>BLOOM-1.1B</td>
+                            <td>1.1B</td>
+                            <td>16.03</td>
+                            <td>41.9%</td>
+                            <td>64.6%</td>
+                            <td>0.5365</td>
+                        </tr>
+                        <tr>
+                            <td>#11</td>
+                            <td>Polyglot-Ko-1.3B</td>
+                            <td>1.3B</td>
+                            <td>25.05</td>
+                            <td>48.6%</td>
+                            <td>69.1%</td>
+                            <td>0.4889</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 80px;">
+                <h3 style="text-align: center; margin-bottom: 40px; font-size: 1.8rem;"
+                    data-en="Data Efficiency Comparison">Data Efficiency <span class="gradient-text">Comparison</span>
+                </h3>
+                <div class="table-container">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th data-en="Model">Model</th>
+                                <th data-en="Training Tokens">Training Tokens</th>
+                                <th data-en="Efficiency Multiplier (vs Gumini)">Efficiency
+                                    Multiplier (vs Gumini)</th>
+                                <th data-en="Calculation">Calculation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Qwen-2.5-7B</td>
+                                <td>18T</td>
+                                <td style="color: #F72585; font-weight: 700;">5,732×</td>
+                                <td style="color: var(--text-secondary);">18,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Qwen-2.5-1.5B</td>
+                                <td>18T</td>
+                                <td style="color: #F72585; font-weight: 700;">5,732×</td>
+                                <td style="color: var(--text-secondary);">18,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Qwen-2.5-0.5B</td>
+                                <td>18T</td>
+                                <td style="color: #F72585; font-weight: 700;">5,732×</td>
+                                <td style="color: var(--text-secondary);">18,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Llama-3.2-3B</td>
+                                <td>9T</td>
+                                <td style="color: #FF8E53; font-weight: 700;">2,866×</td>
+                                <td style="color: var(--text-secondary);">9,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Llama-3.2-1B</td>
+                                <td>9T</td>
+                                <td style="color: #FF8E53; font-weight: 700;">2,866×</td>
+                                <td style="color: var(--text-secondary);">9,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>EXAONE-3.5-2.4B</td>
+                                <td>~6.5T</td>
+                                <td style="font-weight: 700;">~2,070×</td>
+                                <td style="color: var(--text-secondary);">6,500B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Gemma-2B</td>
+                                <td>2T</td>
+                                <td style="font-weight: 700;">637×</td>
+                                <td style="color: var(--text-secondary);">2,000B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>BLOOM-1.1B</td>
+                                <td>350B</td>
+                                <td style="font-weight: 700;">111×</td>
+                                <td style="color: var(--text-secondary);">350B ÷ 3.14B</td>
+                            </tr>
+                            <tr>
+                                <td>Polyglot-Ko-1.3B</td>
+                                <td>213B</td>
+                                <td style="font-weight: 700;">68×</td>
+                                <td style="color: var(--text-secondary);">213B ÷ 3.14B</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="margin: 100px 0;">
+                <h3 style="text-align: center; margin-bottom: 40px; font-size: 1.8rem;"
+                    data-en="Training Method: Inheritune">Training Method: <span class="gradient-text">Inheritune</span>
+                </h3>
+                <p style="text-align: center; color: var(--text-secondary); max-width: 800px; margin: 0 auto 60px;"
+                    data-en="&ldquo;Less is More.&rdquo; Gumini uses a progressive training strategy where layers are added incrementally, ensuring maximum efficiency."
+                    data-kr="&ldquo;Less is More.&rdquo; Gumini는 레이어를 점진적으로 추가하는 전략을 사용하여 효율성을 극대화합니다.">
+                    "Less is More." Gumini uses a progressive training strategy where layers are added incrementally,
+                    ensuring maximum efficiency.
+                </p>
+
+                <div class="comparison-grid" style="grid-template-columns: 1fr 1fr; gap: 40px; align-items: stretch;">
+                    <div class="comparison-card"
+                        style="text-align: left; min-height: 280px; display: flex; flex-direction: column;">
+                        <h4 style="color: var(--accent); margin-bottom: 20px;" data-en="Core Philosophy">Core Philosophy
+                        </h4>
+                        <p style="color: var(--text); font-size: 1.05rem; line-height: 1.8; flex-grow: 1;"
+                            data-en='Standard LLMs have inefficient &ldquo;lazy layers&rdquo; in deeper networks. Inheritune initializes a compact model by inheriting potent early layers from a larger pre-trained model, then progressively retrains and expands it, achieving comparable or better performance with significantly fewer layers.'
+                            data-kr='표준 LLM에는 깊은 네트워크에 비효율적인 &ldquo;Lazy Layer&rdquo;가 있습니다. Inheritune은 더 큰 사전학습 모델에서 강력한 초기 레이어를 상속받아 컴팩트 모델을 초기화한 후 점진적으로 재학습하고 확장합니다.'>
+                            Standard LLMs have inefficient "lazy layers" in deeper networks. Inheritune initializes a
+                            compact model by inheriting potent early layers from a larger pre-trained model, then
+                            progressively retrains and expands it, achieving comparable or better performance with
+                            significantly fewer layers.
+                        </p>
+                        <div
+                            style="display: flex; gap: 15px; align-items: center; margin-top: auto; padding-top: 20px;">
+                            <a href="https://huggingface.co/papers/2404.08634" target="_blank"
+                                style="color: var(--primary); text-decoration: none; border-bottom: 1px dashed var(--primary);">
+                                <i class="fas fa-book"></i> Read the Paper
+                            </a>
+                            <button onclick="toggleCitation()"
+                                style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9rem; transition: color 0.3s;">
+                                <i class="fas fa-quote-right"></i> Cite
+                            </button>
+                        </div>
+                        <div id="citationBox"
+                            style="display: none; margin-top: 15px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-secondary); position: relative; border: 1px solid var(--border);">
+                            <button onclick="copyCitation()"
+                                style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--text-secondary); cursor: pointer; transition: color 0.3s;"
+                                title="Copy BibTeX">
+                                <i class="far fa-copy"></i>
+                            </button>
+                            <pre style="margin: 0; white-space: pre-wrap; text-align: left;">
+                                @inproceedings{Sanyal2024inheritune,
+  title={Inheritune: Training Smaller Yet More Attentive Language Models},
+  author={Sunny Sanyal and Ravid Shwartz-Ziv and Alexandros G. Dimakis and Sujay Sanghavi},
+  year={2024},
+  url={https://arxiv.org/abs/2404.08634}
+}</pre>
+                        </div>
+                    </div>
+
+                    <div class="comparison-card"
+                        style="margin-top:0; text-align: left; min-height: 280px; background: rgba(255,255,255,0.03);">
+                        <h4 style="color: white; margin-bottom: 20px;" data-en="Gumini-1.5B Growth Schedule">Gumini-1.5B
+                            Growth Schedule</h4>
+                        <ul style="list-style: none; padding: 0; color: var(--text-secondary);">
+                            <li style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+                                <span>Stage 0 (Start)</span>
+                                <span style="color: white;">10 Layers</span>
+                            </li>
+                            <li style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+                                <span>Stage 1-5</span>
+                                <span style="color: white;">+1 Layer per stage</span>
+                            </li>
+                            <li
+                                style="margin-bottom: 15px; display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                                <span style="color: var(--primary); font-weight: 700;">Stage 6 (Final)</span>
+                                <span style="color: var(--primary); font-weight: 700;">16 Layers (3.14B Tokens)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-card fade-up">
+                    <canvas id="pplChart"></canvas>
+                </div>
+                <div class="chart-card fade-up">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <h2 class="section-title" data-en="Benchmark Figures">Benchmark <span class="gradient-text">Figures</span>
+            </h2>
+            <div class="comparison-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+                <div class="comparison-card">
+                    <img src="figures/new_ppl_comparison_3.png" alt="PPL Comparison" class="figure-img"
+                        onclick="openModal(this.src)" style="width: 100%; border-radius: 10px;">
+                    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-secondary);"
+                        data-en="Perplexity Comparison">Perplexity Comparison
+                    </p>
+                </div>
+                <div class="comparison-card">
+                    <img src="figures/new_ppl_vs_params_1.png" alt="PPL vs Params" class="figure-img"
+                        onclick="openModal(this.src)" style="width: 100%; border-radius: 10px;">
+                    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-secondary);"
+                        data-en="Efficiency Curve (PPL vs Params)">Efficiency Curve (PPL vs Params)
+                    </p>
+                </div>
+                <div class="comparison-card">
+                    <img src="figures/new_ranking_table_1.png" alt="Ranking Table" class="figure-img"
+                        onclick="openModal(this.src)" style="width: 100%; border-radius: 10px;">
+                    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-secondary);"
+                        data-en="Performance Ranking">Performance Ranking
+                    </p>
+                </div>
+            </div>
+        </div>
+        </div>
+    </section>
+
+    <section id="architecture">
+        <div class="container">
+            <div class="section-header fade-up">
+                <div class="section-tag">QUICK START</div>
+                <h2 class="section-title" style="text-align: center;" data-en="Usage">Usage</h2>
+            </div>
+
+            <div class="code-wrapper fade-up">
+                <div class="code-header">
+                    <div class="window-dots">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                    </div>
+                    <button class="copy-btn" onclick="copyCode()">
+                        <i class="far fa-copy"></i> <span>Copy</span>
+                    </button>
+                </div>
+                <pre><code id="codeSnippet"><span class="kwd">from</span> transformers <span class="kwd">import</span> AutoModelForCausalLM, AutoTokenizer
+<span class="kwd">import</span> torch
+
+model = AutoModelForCausalLM.<span class="func">from_pretrained</span>(
+    <span class="str">"GuminiResearch/Gumini-1.5B-Base"</span>,
+    torch_dtype=torch.bfloat16,
+    device_map=<span class="str">"auto"</span>
+)
+tokenizer = AutoTokenizer.<span class="func">from_pretrained</span>(<span class="str">"GuminiResearch/Gumini-1.5B-Base"</span>)
+
+prompt = <span class="str">"저는 구미니입니다."</span>
+inputs = tokenizer(prompt, return_tensors=<span class="str">"pt"</span>).to(model.device)
+
+outputs = model.<span class="func">generate</span>(
+    **inputs,
+    max_new_tokens=<span class="str">200</span>,
+    repetition_penalty=<span class="str">1.2</span>,
+    do_sample=<span class="kwd">True</span>,
+    temperature=<span class="str">0.7</span>,
+    top_p=<span class="str">0.9</span>,
+)
+<span class="func">print</span>(tokenizer.<span class="func">decode</span>(outputs[<span class="str">0</span>], skip_special_tokens=<span class="kwd">True</span>))</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="background: rgba(255,255,255,0.02);">
+        <div class="container">
+            <div class="section-header fade-up">
+                <div class="section-tag">REFERENCES</div>
+                <h2 class="section-title" style="text-align: center;" data-en="Appendix: Model Sources">Appendix: Model
+                    Sources</h2>
+                <p class="section-desc" style="text-align: center;"
+                    data-en="Training token counts and source references for benchmark models."
+                    data-kr="벤치마크 모델들의 학습 토큰 수와 출처.">
+                    Training token counts and source references for benchmark models.
+                </p>
+            </div>
+
+            <div class="table-container fade-up" style="max-width: 900px; margin: 0 auto;">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Tokens</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Qwen-2.5 (7B / 1.5B / 0.5B)</td>
+                            <td>18T</td>
+                            <td><a href="https://arxiv.org/abs/2412.15115" target="_blank"
+                                    style="color: var(--primary);">arXiv</a></td>
+                        </tr>
+                        <tr>
+                            <td>Llama-3.2 (3B / 1B)</td>
+                            <td>9T</td>
+                            <td><a href="https://huggingface.co/meta-llama/Llama-3.2-3B" target="_blank"
+                                    style="color: var(--primary);">HuggingFace</a></td>
+                        </tr>
+                        <tr>
+                            <td>Gemma-2B</td>
+                            <td>2T</td>
+                            <td><a href="https://arxiv.org/abs/2408.00118" target="_blank"
+                                    style="color: var(--primary);">arXiv</a></td>
+                        </tr>
+                        <tr>
+                            <td>EXAONE-3.5-2.4B</td>
+                            <td>~6.5T</td>
+                            <td><a href="https://arxiv.org/abs/2507.11407" target="_blank"
+                                    style="color: var(--primary);">arXiv</a></td>
+                        </tr>
+                        <tr>
+                            <td>BLOOM-1.1B</td>
+                            <td>350B</td>
+                            <td><a href="https://huggingface.co/bigscience/bloom" target="_blank"
+                                    style="color: var(--primary);">HuggingFace</a></td>
+                        </tr>
+                        <tr>
+                            <td>Polyglot-Ko-1.3B</td>
+                            <td>213B</td>
+                            <td><a href="https://huggingface.co/EleutherAI/polyglot-ko-1.3b" target="_blank"
+                                    style="color: var(--primary);">HuggingFace</a></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" style="background: rgba(255,255,255,0.02); padding-top: 0;">
+        <div class="container">
+            <div class="evaluation-formulas fade-up" style="max-width: 900px; margin: 0 auto;">
+                <h3 class="section-title" style="text-align: center; font-size: 1.5rem; margin-bottom: 30px;"
+                    data-en="Evaluation Metrics">Evaluation Metrics</h3>
+
+                <div
+                    style="background: rgba(255,255,255,0.03); padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+
+                    <div style="margin-bottom: 40px;">
+                        <h4
+                            style="color: var(--text-secondary); margin-bottom: 15px; border-left: 3px solid var(--primary); padding-left: 10px;">
+                            Perplexity (PPL)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">
+                                    Per-dataset:</div>
+                                <div style="font-size: 1.1rem;">
+                                    $$ PPL_d = \exp(L_d) $$
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">
+                                    Overall:</div>
+                                <div style="font-size: 1.1rem;">
+                                    $$ PPL_{overall} = \exp\left(\frac{\sum_{d \in D} L_d \cdot T_d}{\sum_{d \in D}
+                                    T_d}\right) $$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 40px;">
+                        <h4
+                            style="color: var(--text-secondary); margin-bottom: 15px; border-left: 3px solid var(--accent); padding-left: 10px;">
+                            Top-k Accuracy</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">
+                                    Per-dataset:</div>
+                                <div style="font-size: 1.1rem;">
+                                    $$ Acc_d = \frac{C_d}{T_d} $$
+                                </div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px;">
+                                    Overall:</div>
+                                <div style="font-size: 1.1rem;">
+                                    $$ Acc_{overall} = \frac{\sum_{d \in D} C_d}{\sum_{d \in D} T_d} $$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 25px;">
+                        <h4 style="color: var(--text-secondary); margin-bottom: 15px; font-size: 1rem;">Notation</h4>
+                        <table
+                            style="width: 100%; color: var(--text-secondary); border-collapse: collapse; font-size: 0.95rem;">
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <th style="text-align: left; padding: 8px; color: var(--text);">Symbol</th>
+                                <th style="text-align: left; padding: 8px; color: var(--text);">Description</th>
+                            </tr>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 8px;">$$ D $$</td>
+                                <td style="padding: 8px;">Set of evaluation datasets</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 8px;">$$ L_d $$</td>
+                                <td style="padding: 8px;">Average cross-entropy loss on dataset \( d \)</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 8px;">$$ T_d $$</td>
+                                <td style="padding: 8px;">Total token count in dataset \( d \)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px;">$$ C_d $$</td>
+                                <td style="padding: 8px;">Correctly predicted tokens in dataset \( d \)</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <footer>
+        <div class="container">
+            <div class="logo" style="margin-bottom: 20px; justify-content: center;">Gumini</div>
+            <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;"
+                data-en="Pioneering efficient AI research for a more accessible future."
+                data-kr="더 접근하기 쉬운 미래를 위해 효율적인 AI 연구를 개척합니다.">
+                Pioneering efficient AI research for a more accessible future.
+            </p>
+
+            <div class="social-links">
+                <a href="https://huggingface.co/GuminiResearch" class="social-btn" target="_blank" title="Hugging Face">
+                    <img src="assets/huggingface.png" class="hf-icon" alt="Hugging Face"
+                        style="width: 28px; height: 28px;">
+                </a>
+                <a href="https://github.com/Gumini-Research" class="social-btn" target="_blank" title="GitHub">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://x.com/Gumini_Research" class="social-btn" target="_blank" title="X (Twitter)">
+                    <i class="fab fa-x-twitter"></i>
+                </a>
+                <a href="https://www.linkedin.com/in/devgumin" class="social-btn" target="_blank" title="LinkedIn">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+            </div>
+
+            <p style="color: rgba(255,255,255,0.2); font-size: 0.85rem;">
+                © 2025 Gumini Research. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        window.onscroll = function () {
+            let winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            let scrolled = (winScroll / height) * 100;
+            document.getElementById("scrollProgress").style.width = scrolled + "%";
+
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+        const counters = document.querySelectorAll('.counter');
+        counters.forEach(counter => {
+            const target = parseInt(counter.dataset.target);
+            const duration = 2000;
+
+            const updateCounter = () => {
+                const count = +counter.innerText;
+                const increment = target / (duration / 16);
+
+                if (count < target) {
+                    counter.innerText = Math.ceil(count + increment);
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    counter.innerText = target;
+                }
+            };
+
+            const counterObserver = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    updateCounter();
+                    counterObserver.disconnect();
+                }
+            });
+            counterObserver.observe(counter);
+        });
+
+        const langBtns = document.querySelectorAll('.lang-btn');
+        const translatables = document.querySelectorAll('[data-en]');
+
+        langBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                langBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const lang = btn.dataset.lang;
+                translatables.forEach(el => {
+                    if (lang === 'kr' && el.dataset.kr) {
+                        el.innerHTML = el.dataset.kr;
+                    } else if (el.dataset.en) {
+                        el.innerHTML = el.dataset.en;
+                    }
+                });
+            });
+        });
+
+        function copyCode() {
+            const code = document.getElementById('codeSnippet').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.copy-btn span');
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = original, 2000);
+            });
+        }
+
+        function openModal(src) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImg');
+            modalImg.src = src;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        const commonOptions = {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#a0a0b0', font: { family: 'Outfit' } } }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#a0a0b0', font: { family: 'Outfit' } }
+                },
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#a0a0b0', font: { family: 'Outfit' } }
+                }
+            }
+        };
+
+        new Chart(document.getElementById('pplChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Qwen-2.5-7B', 'Gemma-2B', 'Gumini-1.5B', 'Llama-3.2-3B', 'Polyglot-Ko-1.3B'],
+                datasets: [{
+                    label: 'Perplexity (Lower is Better)',
+                    data: [6.39, 8.15, 8.49, 9.47, 25.05],
+                    backgroundColor: [
+                        'rgba(255, 255, 255, 0.1)',
+                        'rgba(255, 255, 255, 0.1)',
+                        '#F72585',
+                        'rgba(255, 255, 255, 0.1)',
+                        'rgba(255, 255, 255, 0.1)'
+                    ],
+                    borderRadius: 8,
+                    borderWidth: 0
+                }]
+            },
+            options: commonOptions
+        });
+
+        new Chart(document.getElementById('scoreChart'), {
+            type: 'line',
+            data: {
+                labels: ['BLOOM-1.1B', 'Polyglot-Ko', 'Llama-3.2-1B', 'Gumini-1B', 'Gumini-1.5B', 'Gemma-2B', 'Qwen-7B'],
+                datasets: [{
+                    label: 'Top-1 Accuracy',
+                    data: [41.9, 48.6, 49.4, 49.5, 53.6, 54.9, 58.8],
+                    borderColor: '#FF8E53',
+                    tension: 0.4,
+                    pointBackgroundColor: '#FF8E53',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: commonOptions
+        });
+        function toggleCitation() {
+            const box = document.getElementById('citationBox');
+            if (box.style.display === 'none') {
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function copyCitation() {
+            const text = document.querySelector('#citationBox pre').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector('#citationBox button i');
+                btn.className = 'fas fa-check';
+                setTimeout(() => {
+                    btn.className = 'far fa-copy';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+
+</html>
